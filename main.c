@@ -6,8 +6,10 @@
 
 #include IMPL
 
-#ifdef OPT
+#if OPT == 1
 #define OUT_FILE "opt.txt"
+entry *HashTable[HASH_SIZE] = {NULL};
+entry *Head[HASH_SIZE] = {NULL};
 #else
 #define OUT_FILE "orig.txt"
 #endif
@@ -26,8 +28,29 @@ static double diff_in_second(struct timespec t1, struct timespec t2)
     }
     return (diff.tv_sec + diff.tv_nsec / 1000000000.0);
 }
+/*
+unsigned int hash(char *str)
+{
+    //DJB2Hash
 
-#ifdef OPT
+    unsigned long hash = 5381;
+    int c = 0;
+    while (c = *str++)
+        hash = ((hash << 5) + hash) + c; // hash * 33 + c
+    return hash;
+
+
+    unsigned int seed = 31;
+    unsigned int hash = 0;
+
+    while(*str)
+        hash = hash * seed + (*str++);
+
+    return hash % HASH_SIZE;
+
+}
+*/
+#if OPT == 1
 
 int main(int argc, char *argv[])
 {
@@ -36,7 +59,7 @@ int main(int argc, char *argv[])
     char line[MAX_LAST_NAME_SIZE];
     struct timespec start, end;
     double cpu_time1, cpu_time2;
-
+    unsigned int HashVal;
     /* check file opening */
     fp = fopen(DICT_FILE, "r");
     if (fp == NULL) {
@@ -45,12 +68,11 @@ int main(int argc, char *argv[])
     }
 
     /* build the entry */
-    entry *pHead[HASH_SIZE];
-    for (i = 0; i < HASH_SIZE; ++i) {
-        pHead[i] = (entry *) malloc(sizeof(entry));
-        pHead[i]->pNext = NULL;
-    }
+    entry *e, *pHead;
+    pHead = (entry *)malloc(sizeof(entry));
     printf("size of entry : %lu bytes\n", sizeof(entry));
+    e = pHead;
+    e->pNext = NULL;
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
@@ -61,28 +83,35 @@ int main(int argc, char *argv[])
             i++;
         line[i - 1] = '\0';
         i = 0;
-        append(line, pHead);
+        HashVal = hash(line) % HASH_SIZE;
+        if (HashTable[HashVal] == NULL) {
+            HashTable[HashVal] = (entry *) malloc(sizeof(entry));
+            Head[HashVal] = HashTable[HashVal];
+        }
+        HashTable[HashVal] = append(line, HashTable[HashVal]);
     }
+
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time1 = diff_in_second(start, end);
-
     /* close file as soon as possible */
     fclose(fp);
 
 
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
+    HashVal = hash(input) % HASH_SIZE;
+    e = Head[HashVal];
 
-    assert(findName(input, pHead) &&
+    assert(findName(input, e) &&
            "Did you implement findName() in " IMPL "?");
-    assert(0 == strcmp(findName(input, pHead)->lastName, "zyxel"));
+    assert(0 == strcmp(findName(input, e)->lastName, "zyxel"));
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
 #endif
     /* compute the execution time */
     clock_gettime(CLOCK_REALTIME, &start);
-    findName(input, pHead);
+    findName(input, e);
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time2 = diff_in_second(start, end);
 
@@ -92,16 +121,16 @@ int main(int argc, char *argv[])
 
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
-
-    for (i = 0; i < HASH_SIZE; ++i) {
-        entry *tmp;
-        while(pHead[i]) {
-            tmp = pHead[i]->pNext;
-            free(pHead[i]);
-            pHead[i] = tmp;
+    /*
+        for (i = 0; i < HASH_SIZE; ++i) {
+            entry *tmp;
+            while(HashTable[i]) {
+                tmp = HashTable[i]->pNext;
+                free(HashTable[i]);
+                HashTable[i] = tmp;
+            }
         }
-    }
-
+    */
 
     return 0;
 }
@@ -178,4 +207,5 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
 #endif

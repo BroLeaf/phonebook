@@ -8,7 +8,7 @@
  * line to set OPT properly */
 #define OPT 1
 
-#define HASH_SIZE 2048
+#define HASH_SIZE 1024
 
 typedef struct __PHONE_BOOK_OTHER {
     char firstName[16];
@@ -28,7 +28,8 @@ typedef struct __PHONE_BOOK_ENTRY {
     struct __PHONE_BOOK_ENTRY *pNext;
 } entry;
 
-entry *findName(char lastName[], entry **pHead);
-entry *append(char lastName[], entry **e);
+entry *findName(char lastName[], entry *pHead);
+entry *append(char lastName[], entry *e);
+unsigned long hash(char *str);
 
 #endif
